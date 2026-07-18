@@ -1,0 +1,63 @@
+spring:
+  application:
+    name: orderflow
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/orderflow
+    username: orderflow_user
+    password: orderflow_pass
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+
+  cache:
+    type: redis
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers
+
+# Resilience4j configuration for the mock payment gateway client.
+# Interview angle: know what each of these knobs actually does, not just that they exist.
+resilience4j:
+  circuitbreaker:
+    instances:
+      paymentGateway:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10          # look at the last 10 calls
+        minimum-number-of-calls: 5        # need at least 5 calls before calculating failure rate
+        failure-rate-threshold: 50        # trip OPEN if >=50% of those fail
+        wait-duration-in-open-state: 10s  # stay OPEN for 10s before trying HALF_OPEN
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+  retry:
+    instances:
+      paymentGateway:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+        ignore-exceptions:
+          - com.practice.orderflow.exception.PaymentDeclinedException  # don't retry a legitimate decline
+  timelimiter:
+    instances:
+      paymentGateway:
+        timeout-duration: 2s
