@@ -24,4 +24,11 @@ public class InventoryService {
                 + quantity + ", Available: " + product.getStockQuantity());
         }
     }
+
+    public void releaseStock(UUID productId, int quantity) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
+        product.setStockQuantity(product.getStockQuantity() + quantity);
+        productRepository.save(product);
+    }
 }
